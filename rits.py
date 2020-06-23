@@ -68,7 +68,7 @@ class TemporalDecay(Layer):
 
 
 class RITS(Layer):
-    def __init__(self, internal_dim, hid_dim, sequence_length, name="Rits"):
+    def __init__(self, internal_dim, hid_dim, sequence_length=None, name="Rits"):
         super(RITS, self).__init__(name=name)
         self.hid_dim = hid_dim
         self.internal_dim = internal_dim
@@ -84,6 +84,7 @@ class RITS(Layer):
         self.weight_combine = Dense(units=self.internal_dim, activation='linear')
         self.dropout = Dropout(rate=0.25)
         self.out = Dense(units=1, activation='linear')
+        self.sequence_length = input_shape[1]
 
     # @tf.function
     def call(self, values, masks, deltas):
