@@ -81,7 +81,7 @@ class RITS(Model):
         self.out = Dense(units=1, activation='linear')
         self.sequence_length = input_shape[1]
 
-    # @tf.function
+    @tf.function
     def call(self, values, masks, deltas):
         h = tf.zeros(shape=(values.shape[0], self.hid_dim))
         c = tf.zeros(shape=(values.shape[0], self.hid_dim))
@@ -128,21 +128,22 @@ class RITS(Model):
 
 
 print("Debug Ready")
-x = tf.zeros(shape=(7, 3, 5))
+x = tf.ones(shape=(7, 3, 5))
 m = tf.zeros(shape=(7, 3, 5))
 d = tf.zeros(shape=(7, 3, 5))
 opt = tf.keras.optimizers.Adam()
 rit_model = RITS(5, 100)
 
 
-# @tf.function
+@tf.function
 def train_step(x, m, d):
     with tf.GradientTape() as tape:
         predictions, imputations, custom_loss = rit_model(x, m, d)
-        loss = tf.keras.losses.mean_squared_error(0, predictions)
+        loss = tf.keras.losses.mean_squared_error(0, 0.3*predictions + custom_loss)
     gradients = tape.gradient(loss, rit_model.trainable_variables)
     opt.apply_gradients(zip(gradients, rit_model.trainable_variables))
     tf.print(loss)
+
 
 
 train_step(x, m, d)
