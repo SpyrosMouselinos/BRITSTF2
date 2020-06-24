@@ -124,7 +124,7 @@ class RITS(Model):
             inputs = tf.concat([c_c, m], axis=1)
 
             _, h, c = self.rnn_cell(tf.expand_dims(inputs, axis=1), [h, c])
-            # custom_loss.append(custom_loss_x)
+            custom_loss.append(custom_loss_x)
         imputations = tf.concat([tf.expand_dims(f, axis=1) for f in imputations], axis=1)
         predictions = self.dense(h)
         predictions = self.out(predictions)
@@ -138,8 +138,8 @@ class RITS(Model):
 # d = tf.zeros(shape=(7, 3, 5))
 # opt = tf.keras.optimizers.Adam()
 # rit_model = RITS(5, 100)
-
-
+#
+#
 # @tf.function
 # def train_step(x, m, d):
 #     with tf.GradientTape() as tape:
