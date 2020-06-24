@@ -81,7 +81,7 @@ class RITS(Model):
         self.out = Dense(units=1, activation='linear')
         self.sequence_length = input_shape[1]
 
-    # @tf.function
+    @tf.function
     def call(self, values, masks, deltas):
         h = tf.zeros(shape=(values.shape[0], self.hid_dim))
         c = tf.zeros(shape=(values.shape[0], self.hid_dim))
@@ -98,27 +98,33 @@ class RITS(Model):
                 m = masks[:, t, :]
                 d = deltas[:, t, :]
 
-            gamma_h = self.temp_decay_h(d)
-            gamma_x = self.temp_decay_x(d)
-
+            ### History and Input Decay Conditioned on Deltas
+            gamma_h = self.temp_decay_h(d)  # Page 4 equation(3)
             h = h * gamma_h
+            x_hat = self.hist_reg(h)  # Page 4 Equation (1)
 
-            x_h = self.hist_reg(h)
-            custom_loss_x = tf.reduce_sum((tf.abs(x - x_h) * m) / (tf.reduce_sum(m) + 1e-6), axis=1)
-            x_c = m * x + (1 - m) * x_h
+            ### Loss 1: Absolute Error Between Input X(t) and Historical Decayed Input X_H(t-1)
+            custom_loss_x = tf.reduce_sum((tf.abs(x - x_hat) * m) / (tf.reduce_sum(m) + 1e-6), axis=1)
+            x_c = m * x + (1 - m) * x_hat  # Page 4 Equation (2)
 
-            z_h = self.feat_reg(x_c)
+            z_hat = self.feat_reg(x_c)  # Page 5 Equation (7)
 
-            alpha = self.weight_combine(tf.concat([gamma_x, m], axis=1))
+            ### Loss 2: Relative Error Between Input X(t) and Zeta Hat
+            custom_loss_x += tf.reduce_sum((tf.abs(x - z_hat) * m) / (tf.reduce_sum(m) + 1e-6), axis=1)
 
-            c_h = alpha * z_h + (1 - alpha) * x_h
-            custom_loss_x += tf.reduce_sum((tf.abs(x - c_h) * m) / (tf.reduce_sum(m) + 1e-6), axis=1)
-            c_c = m * x + (1 - m) * c_h
+            gamma_x = self.temp_decay_x(d)  # Page 4 equation(3)
+            beta = self.weight_combine(tf.concat([gamma_x, m], axis=1))  # Page 6 Equation (8)
+            c_hat = beta * z_hat + (1 - beta) * x_hat
+
+            ### Loss 3: Relative Error Between Input X(t) and the feature correlated corrected Input
+            custom_loss_x += tf.reduce_sum((tf.abs(x - c_hat) * m) / (tf.reduce_sum(m) + 1e-6), axis=1)
+            c_c = m * x + (1 - m) * c_hat
+
             imputations.append(c_c)
             inputs = tf.concat([c_c, m], axis=1)
 
             _, h, c = self.rnn_cell(tf.expand_dims(inputs, axis=1), [h, c])
-            custom_loss.append(custom_loss_x)
+            # custom_loss.append(custom_loss_x)
         imputations = tf.concat([tf.expand_dims(f, axis=1) for f in imputations], axis=1)
         predictions = self.dense(h)
         predictions = self.out(predictions)
