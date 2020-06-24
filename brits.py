@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from rits import RITS
+import numpy as np
 
 
 class BRITS(Model):
@@ -25,16 +26,15 @@ class BRITS(Model):
         return predictions, [imputations_f, imputations_b], custom_loss
 
 
-brit_model = BRITS(internal_dim=5, hid_dim=10, sequence_length=3)
+brit_model = BRITS(internal_dim=3, hid_dim=5)
+opt = tf.keras.optimizers.Adam(1e-3)
 
-print("Debug Ready")
-x = tf.ones(shape=(64, 3, 5))
-m = tf.ones(shape=(64, 3, 5))
-d = tf.zeros(shape=(64, 3, 5))
-y = tf.ones(shape=(1, 5)) * 0.5
-opt = tf.keras.optimizers.Adam()
-
-for i in range(0, 100):
+for i in range(0, 50):
+    x = np.random.uniform(low=0, high=1, size=(256, 10, 3)).astype('float32')
+    m = np.random.randint(low=0, high=2, size=(256, 10, 3)).astype('float32')
+    d = np.random.randint(low=0, high=2, size=(256, 10, 3)).astype('float32')
+    y = x / 2.0
+    y = y[:, :, 0]
     with tf.GradientTape() as tape:
         predictions, imputations, custom_loss = brit_model(x, m, d)
         prediction_loss = tf.keras.losses.mean_squared_error(y, predictions)
@@ -42,4 +42,8 @@ for i in range(0, 100):
         loss = prediction_loss + discrepancy_loss + custom_loss
     gradients = tape.gradient(loss, brit_model.trainable_variables)
     opt.apply_gradients(zip(gradients, brit_model.trainable_variables))
-    tf.print(loss)
+    tf.print(loss.numpy().mean())
+
+p, i, _ = brit_model(x[0:1], m[0:1], d[0:1])
+print(p)
+print(i)
