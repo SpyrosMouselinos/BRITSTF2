@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Layer, Dense, Dropout
+from tensorflow.keras.layers import Layer, Dense, Dropout, Concatenate
 
 
 class ZeroDiagonalConstraint(tf.keras.constraints.Constraint):
@@ -11,7 +11,7 @@ class ZeroDiagonalConstraint(tf.keras.constraints.Constraint):
     def __init__(self):
         return
 
-    def __call__(self, w):
+    def call(self, w):
         """
         Return the 0 diag weight matrix
         :param w: The weight matrix
@@ -67,7 +67,7 @@ class RITS(Model):
         self.hid_dim = hid_dim
         self.internal_dim = internal_dim
         self.sequence_length = sequence_length
-        self.go_backwards = False
+        self.go_backwards = go_backwards
         return
 
     def build(self, input_shape):
@@ -81,7 +81,7 @@ class RITS(Model):
         self.out = Dense(units=1, activation='linear')
         self.sequence_length = input_shape[1]
 
-    #@tf.function
+    # @tf.function
     def call(self, values, masks, deltas):
         h = tf.zeros(shape=(values.shape[0], self.hid_dim))
         c = tf.zeros(shape=(values.shape[0], self.hid_dim))
@@ -122,25 +122,24 @@ class RITS(Model):
         imputations = tf.concat([tf.expand_dims(f, axis=1) for f in imputations], axis=1)
         predictions = self.dense(h)
         predictions = self.out(predictions)
-        out = custom_loss_x / self.sequence_length
-        return out, predictions, imputations
+        custom_loss = tf.concat([tf.expand_dims(f, axis=1) for f in custom_loss], axis=1)
+        custom_loss = tf.reduce_mean(custom_loss, axis=1)
+        return predictions, imputations, custom_loss
 
 
 print("Debug Ready")
-x = tf.ones(shape=(7, 3, 5))
-m = tf.ones(shape=(7, 3, 5))
+x = tf.zeros(shape=(7, 3, 5))
+m = tf.zeros(shape=(7, 3, 5))
 d = tf.zeros(shape=(7, 3, 5))
 opt = tf.keras.optimizers.Adam()
-rit_model = RITS(5, 10)
-rit_model(x, m, d)
-rit_model.summary()
+rit_model = RITS(5, 100)
 
 
-@tf.function
+# @tf.function
 def train_step(x, m, d):
     with tf.GradientTape() as tape:
-        out, _, _ = rit_model(x, m, d)
-        loss = tf.keras.losses.mean_squared_error(0, out)
+        predictions, imputations, custom_loss = rit_model(x, m, d)
+        loss = tf.keras.losses.mean_squared_error(0, predictions)
     gradients = tape.gradient(loss, rit_model.trainable_variables)
     opt.apply_gradients(zip(gradients, rit_model.trainable_variables))
     tf.print(loss)
