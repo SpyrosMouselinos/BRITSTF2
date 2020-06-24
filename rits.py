@@ -77,11 +77,11 @@ class RITS(Model):
         self.hist_reg = Dense(units=self.internal_dim, activation='linear')
         self.feat_reg = FeatureRegression()
         self.weight_combine = Dense(units=self.internal_dim, activation='linear')
-        self.dense = Dense(units=10, activation='relu')
+        self.dense = Dense(units=self.internal_dim, activation='relu')
         self.out = Dense(units=1, activation='linear')
         self.sequence_length = input_shape[1]
 
-    @tf.function
+    # @tf.function
     def call(self, values, masks, deltas):
         h = tf.zeros(shape=(values.shape[0], self.hid_dim))
         c = tf.zeros(shape=(values.shape[0], self.hid_dim))
@@ -90,9 +90,9 @@ class RITS(Model):
         for t in range(self.sequence_length):
 
             if self.go_backwards:
-                x = values[:, self.sequence_length - t, :]
-                m = masks[:, self.sequence_length - t, :]
-                d = deltas[:, self.sequence_length - t, :]
+                x = values[:, self.sequence_length - t - 1, :]
+                m = masks[:, self.sequence_length - t - 1, :]
+                d = deltas[:, self.sequence_length - t - 1, :]
             else:
                 x = values[:, t, :]
                 m = masks[:, t, :]
@@ -126,24 +126,19 @@ class RITS(Model):
         custom_loss = tf.reduce_mean(custom_loss, axis=1)
         return predictions, imputations, custom_loss
 
-
-print("Debug Ready")
-x = tf.ones(shape=(7, 3, 5))
-m = tf.zeros(shape=(7, 3, 5))
-d = tf.zeros(shape=(7, 3, 5))
-opt = tf.keras.optimizers.Adam()
-rit_model = RITS(5, 100)
-
-
-@tf.function
-def train_step(x, m, d):
-    with tf.GradientTape() as tape:
-        predictions, imputations, custom_loss = rit_model(x, m, d)
-        loss = tf.keras.losses.mean_squared_error(0, 0.3*predictions + custom_loss)
-    gradients = tape.gradient(loss, rit_model.trainable_variables)
-    opt.apply_gradients(zip(gradients, rit_model.trainable_variables))
-    tf.print(loss)
+# print("Debug Ready")
+# x = tf.ones(shape=(7, 3, 5))
+# m = tf.zeros(shape=(7, 3, 5))
+# d = tf.zeros(shape=(7, 3, 5))
+# opt = tf.keras.optimizers.Adam()
+# rit_model = RITS(5, 100)
 
 
-
-train_step(x, m, d)
+# @tf.function
+# def train_step(x, m, d):
+#     with tf.GradientTape() as tape:
+#         predictions, imputations, custom_loss = rit_model(x, m, d)
+#         loss = tf.keras.losses.mean_squared_error(0, 0.3*predictions + custom_loss)
+#     gradients = tape.gradient(loss, rit_model.trainable_variables)
+#     opt.apply_gradients(zip(gradients, rit_model.trainable_variables))
+#     tf.print(loss)
