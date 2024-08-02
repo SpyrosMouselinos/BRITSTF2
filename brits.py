@@ -13,12 +13,49 @@ class BRITS(Model):
         return
 
     def build(self, input_shape):
+        """Build the RITS layers for the model.
+
+        This method initializes two RITS layers, one for processing the input
+        sequence in the forward direction and another for processing it in the
+        backward direction. The sequence length is derived from the input shape
+        provided. The RITS layers are configured with specified internal and
+        hidden dimensions.
+
+        Args:
+            input_shape (tuple): A tuple representing the shape of the input data,
+                where the second element indicates the sequence length.
+        """
+
         self.sequence_length = input_shape[1]
         self.rits_f = RITS(self.internal_dim, self.hid_dim, self.sequence_length, go_backwards=False, name="RITS_F")
         self.rits_b = RITS(self.internal_dim, self.hid_dim, self.sequence_length, go_backwards=True, name="RITS_B")
         return
 
     def call(self, values, masks, deltas):
+        """Call the forward and backward RITS functions to compute predictions and
+        custom loss.
+
+        This method takes input values, masks, and deltas, and computes
+        predictions using both forward and backward RITS functions. It averages
+        the predictions and custom loss from both directions to provide a final
+        output. The method also returns the imputations from both forward and
+        backward passes.
+
+        Args:
+            values (array-like): The input values for the RITS functions.
+            masks (array-like): The masks to be applied to the input values.
+            deltas (array-like): The deltas used in the RITS computations.
+
+        Returns:
+            tuple: A tuple containing:
+                - predictions (array-like): The averaged predictions from both forward
+                and backward RITS.
+                - list: A list containing imputations from both forward and backward
+                RITS.
+                - custom_loss (float): The averaged custom loss from both forward and
+                backward RITS.
+        """
+
         predictions_f, imputations_f, custom_loss_f = self.rits_f(values, masks, deltas)
         predictions_b, imputations_b, custom_loss_b = self.rits_b(values, masks, deltas)
         predictions = (predictions_f + predictions_b) / 2.0
